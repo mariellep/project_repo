@@ -65,11 +65,11 @@ calorie_count<-function(tdee,weight_goal,weight_change=0,weight_unit="Kg"){
   }
 }
 
-# Define UI for application that draws a histogram
+# Define UI for application that generates table
 ui <- fluidPage(
    
    # Application title
-   titlePanel("TDEE Calculation"),
+   titlePanel("Daily Caloric Intake Calculation"),
    
    # Sidebar with a slider input for number of bins 
    sidebarLayout(
@@ -98,7 +98,7 @@ ui <- fluidPage(
         helpText("If the body fat percentage is provided, ",
                  "the Katch-McArdle formula is used for BMR. ",
                  "Otherwise, the Mifflin-St. Jeor formula is used for BMR."),
-        helpText("Clarification on activity level:"),
+        h5("Clarification on activity level:"),
         helpText("Sedentary: Desk job, little activity"),
         helpText("Light: 1-2 times exercise per week"),
         helpText("Moderate: 3-5 times exercise per week"),
