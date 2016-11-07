@@ -38,7 +38,7 @@ MSJ_BMR<-function(age,sex,height_val,height_unit,weight_val,weight_unit){
 KM_BMR<-function(weight_val,weight_unit,bf_pct){
   bf_pct=ifelse(bf_pct<1,bf_pct*100,bf_pct)
   lean_mass_pct=100-bf_pct
-  correct_weight=convert_units(weight_val,weight_unit,"kg")
+  correct_weight=convert_units(weight_val,weight_unit,"Kg")
   lean_mass=(lean_mass_pct/100)*correct_weight
   return(370 + 21.6*lean_mass)
 }
@@ -75,25 +75,24 @@ ui <- fluidPage(
    sidebarLayout(
       sidebarPanel(
          helpText("Note: for all numerical entries, only enter the number (no other characters)."),
-         helpText("Make sure you select the correct units!"),
+         helpText("Make sure you select the correct units!",
+           "The table will refresh once you hit the blue button."),
+         selectInput("weight_units","Weight Units:",
+                     choices=c("Kg","Lb")),
+         selectInput("height_units","Height Units:",
+                     choices=c("cm","in")),
          selectInput("sex", "Select Sex:",
                      choices=c("F","M")),
          textInput("age", "Enter Age:"),
-         textInput("height","Enter Height:"),
-         selectInput("height_units","Units:",
-                     choices=c("cm","in")),
-         textInput("weight","Enter Weight:"),
-         selectInput("weight_units","Units:",
-                     choices=c("Kg","Lb")),
-         textInput("bf","Enter % Body Fat (optional):"),
+         textInput("height","Enter Height (in or cm):"),
+         textInput("weight","Enter Weight (lb or kg):"),
+         textInput("bf","Enter % Body Fat (optional, number from 0-100):"),
          selectInput("active","Select Activity Level:",
                      choices=c("Sedentary","Light","Moderate",
                                "Heavy","Very Heavy")),
          selectInput("goal","Weight Goal:",
                      choices=c("Cutting","Maintenance","Bulking")),
          textInput("weight_change","Weight change per week (optional):"),
-         selectInput("change_units","Units weight change:",
-                     choices=c("Kg","Lb")),
          submitButton("Calculate Daily Caloric Intake")
       ),   
       # Display a table with 
@@ -129,10 +128,11 @@ server <- function(input, output) {
        bf=as.numeric(input$bf)
        bmr=KM_BMR(weight,input$weight_units,bf)
      }
+
      #Calculate TDEE and Calorie Budget
      tdee=tdee_calc(bmr,input$active)
      weight_change=as.numeric(input$weight_change)
-     cals=calorie_count(tdee,input$goal,weight_change,input$change_units)
+     cals=calorie_count(tdee,input$goal,weight_change,input$weight_units)
      
      #Create a table
      out_table=data.frame(BMR=as.integer(round(bmr)),
