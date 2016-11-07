@@ -92,7 +92,7 @@ ui <- fluidPage(
                                "Heavy","Very Heavy")),
          selectInput("goal","Weight Goal:",
                      choices=c("Cutting","Maintenance","Bulking")),
-         textInput("weight_change","Weight change per week (optional):"),
+         textInput("weight_change","Weight change per week:","0"),
          submitButton("Calculate Daily Caloric Intake")
       ),   
       # Display a table with 
