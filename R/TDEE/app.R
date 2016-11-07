@@ -74,6 +74,8 @@ ui <- fluidPage(
    # Sidebar with a slider input for number of bins 
    sidebarLayout(
       sidebarPanel(
+         helpText("Note: for all numerical entries, only enter the number (no other characters)."),
+         helpText("Make sure you select the correct units!"),
          selectInput("sex", "Select Sex:",
                      choices=c("F","M")),
          textInput("age", "Enter Age:"),
@@ -90,9 +92,11 @@ ui <- fluidPage(
          selectInput("goal","Weight Goal:",
                      choices=c("Cutting","Maintenance","Bulking")),
          textInput("weight_change","Weight change per week (optional):"),
+         selectInput("change_units","Units weight change:",
+                     choices=c("Kg","Lb")),
          submitButton("Calculate Daily Caloric Intake")
       ),   
-      # Show a plot of the generated distribution
+      # Display a table with 
       mainPanel(
         h4("Calculations"),
         helpText("If the body fat percentage is provided, ",
@@ -128,7 +132,7 @@ server <- function(input, output) {
      #Calculate TDEE and Calorie Budget
      tdee=tdee_calc(bmr,input$active)
      weight_change=as.numeric(input$weight_change)
-     cals=calorie_count(tdee,input$goal,weight_change,input$weight_units)
+     cals=calorie_count(tdee,input$goal,weight_change,input$change_units)
      
      #Create a table
      out_table=data.frame(BMR=as.integer(round(bmr)),
