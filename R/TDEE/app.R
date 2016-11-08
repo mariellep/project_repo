@@ -52,7 +52,10 @@ tdee_calc<-function(bmr,activity){
   return(bmr*activity_mult)
 }
 #Caloric intake calculation
-calorie_count<-function(tdee,weight_goal,weight_change=0,weight_unit="Kg"){
+calorie_count<-function(tdee,weight_goal,weight_change,weight_unit="Kg"){
+  if(weight_change==""){
+    weight_change=0
+  }
   if (weight_goal=="Maintenance"){
     return(tdee)
   }else{
@@ -138,7 +141,7 @@ server <- function(input, output) {
      out_table=data.frame(BMR=as.integer(round(bmr)),
                           TDEE=as.integer(round(tdee)),
                           Calories=as.integer(round(cals)))
-     #print(out_table)
+
    })
 }
 
