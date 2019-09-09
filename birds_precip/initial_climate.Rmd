@@ -1,0 +1,56 @@
+---
+title: "Initial temperature trend exploration: Yolo County"
+output:
+  html_document:
+    df_print: paged
+---
+```{r setup,echo=FALSE}
+library(knitr)
+knitr::opts_chunk$set(echo=FALSE)
+setwd("~/project_repo/birds_precip/")
+```
+This data was obtained from the NOAA Climate Data Online archive (https://www.ncdc.noaa.gov/cdo-web/datasets/GHCND/locations/FIPS:06113/detail). There are 19 stations in the Yolo County:
+
+```{r read_info}
+yolo_data=read.csv("yolo_county_2000_2019.csv")
+tab_info=unique(yolo_data[c("NAME","LATITUDE","LONGITUDE")])
+kable(tab_info,row.names=FALSE)
+```
+
+For now, we are looking at data from January 2000-June 2019, although we can grab more data in the future if needed. Note that not all stations provide the same amount of data!
+
+Listed fields in the CSV:
+
+- TOBS: Temperature at observation time
+- TMAX: Max temperature
+- TMIN: Min temperature
+- TAVG: Average temperature
+- PRCP: Precipitation
+- MDPR: Multi-day precipitation total
+- DAPR: Number of days in MDPR
+- SNOW: snowfall
+- SNWD: Snow depth
+- WT01: Fog
+- WT03: Thunder 
+- WT05: Hail
+- WT11: High or damaging winds
+- MDWM: Multiday wind movement
+- DAWM: Number of days in MDWM
+- WDMV: Total wind movement
+```{r available_data}
+stations=unique(yolo_data$NAME)
+for (s in stations){
+  yolo_subset=yolo_data[yolo_data$NAME==s,]  
+  #Which columns are non-NA?
+  has_values<-c()
+  for (c in names(yolo_subset)[7:22]){
+    if (all(is.na(yolo_subset[,c]))==FALSE){
+      has_values<-c(has_values,c)
+    }
+  }
+  print(sprintf("Station %s has %s",s,paste(has_values,collapse = ", ")))
+}
+
+
+
+```
