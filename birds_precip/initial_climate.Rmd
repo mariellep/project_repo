@@ -1,8 +1,6 @@
 ---
 title: "Initial temperature trend exploration: Yolo County"
-output:
-  html_document:
-    df_print: paged
+output: github_document
 ---
 ```{r setup,echo=FALSE}
 library(knitr)
