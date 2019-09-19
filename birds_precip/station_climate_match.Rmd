@@ -1,0 +1,223 @@
+---
+title: "Matching stations and sites"
+output: github_document
+---
+```{r setup,echo=FALSE}
+library(knitr)
+library(openxlsx)
+library(reshape2)
+library(ggplot2)
+#library(cowplot)
+knitr::opts_chunk$set(echo=FALSE,fig.height = 10,fig.width = 15,warning=FALSE)
+setwd("~/project_repo/birds_precip/")
+
+deg2rad<-function(deg) {
+  return(deg * (pi/180))
+}
+getDistanceFromLatLonInKm<-function(lat1,lon1,lat2,lon2) {
+  R = 6371;
+  dLat = deg2rad(lat2-lat1)
+  dLon = deg2rad(lon2-lon1)
+  a = sin(dLat/2) * sin(dLat/2) +
+    cos(deg2rad(lat1)) * cos(deg2rad(lat2)) *
+    sin(dLon/2) * sin(dLon/2)
+
+  b = 2 * atan2(sqrt(a), sqrt(1-a))
+  d = R * b
+  return(d)
+}
+
+```
+
+This is the next step, matching the stations with the nesting sites.
+
+```{r read_nests}
+yolo_data=read.csv("yolo_county_2000_2019.csv")
+tab_info=unique(yolo_data[c("NAME","LATITUDE","LONGITUDE")])
+sites=read.xlsx("site_locations.xlsx",colNames = TRUE)
+sites_known=sites[1:11,1:4]
+#kable(sites_known)
+kable(sites[,1:4])
+```
+
+Let's try to match up the sites with the nearest station. The last 2 we won't worry about for now; we'll focus on the others.
+
+```{r read_info}
+
+match_table=data.frame('Site'=character(),'Station'=character(),'Distance_km'=numeric(),stringsAsFactors = FALSE)
+r=1
+for (site in 1:nrow(sites_known)){
+  site_data=sites_known[site,]
+  xs=as.numeric(site_data['long'])
+  ys=as.numeric(site_data['lat'])
+  dist<-c()
+  for (stat in 1:nrow(tab_info)){
+    stat_data=tab_info[stat,]
+    xd=as.numeric(stat_data['LONGITUDE'])
+    yd=as.numeric(stat_data['LATITUDE'])
+    stat_site=getDistanceFromLatLonInKm(ys,xs,yd,xd) 
+    dist<-c(dist,stat_site)
+  }
+  nearest_dist_ind=which.min(dist)
+  stat_select=tab_info[nearest_dist_ind,]
+  match_table[r,'Site']=site_data[1,'Site']
+  match_table[r,'Station']=as.character(stat_select[1,'NAME'])
+  match_table[r,3]=dist[nearest_dist_ind]
+  r=r+1
+}
+
+kable(match_table,row.names=FALSE)
+```
+
+
+However, not all stations have the data that we need! We need precipitation (PRCP) and Daily temperature (TMAX, TMIN). All of these stations have at least one of those values, but not all of them have all three! If we only look at stations that have all desired variable, we go from 19 possibilities to three!
+
+
+```{r has_data}
+stations=unique(yolo_data$NAME)
+varnames<-c("PRCP","TMAX","TMIN")
+#snew<-c()
+tab_new=tab_info[0,]
+r=1
+for (s in stations){
+  yolo_subset=yolo_data[yolo_data$NAME==s,]  
+  #Which columns are non-NA?
+  v<-c()
+  for (x in names(yolo_subset)[7:22]){
+    if (all(is.na(yolo_subset[,x]))==FALSE){
+      v<-c(v,x)
+    }
+  }
+  if (all(varnames %in% v)){
+    #snew<-c(snew,s)
+    #get the data from the info table
+    tab_new[r,]=tab_info[tab_info$NAME==s,]
+    r=r+1
+  }
+
+}
+
+kable(tab_new,row.names=FALSE)
+```
+
+Matching that with the sites, this is the final result:
+
+
+```{r available_data}
+match_2=data.frame('Site'=character(),'Station'=character(),'Distance_km'=numeric(),stringsAsFactors = FALSE)
+r=1
+for (site in 1:nrow(sites_known)){
+  site_data=sites_known[site,]
+  xs=as.numeric(site_data['long'])
+  ys=as.numeric(site_data['lat'])
+  dist<-c()
+  for (stat in 1:nrow(tab_new)){
+    stat_data=tab_new[stat,]
+    xd=as.numeric(stat_data['LONGITUDE'])
+    yd=as.numeric(stat_data['LATITUDE'])
+    stat_site=getDistanceFromLatLonInKm(ys,xs,yd,xd) 
+    dist<-c(dist,stat_site)
+  }
+  nearest_dist_ind=which.min(dist)
+  stat_select=tab_new[nearest_dist_ind,]
+  match_2[r,'Site']=site_data[1,'Site']
+  match_2[r,'Station']=as.character(stat_select[1,'NAME'])
+  match_2[r,3]=dist[nearest_dist_ind]
+  r=r+1
+}
+
+kable(match_2,row.names=FALSE)
+```
+
+Now, it's entirely possible that there are closer stations in another county! Or, you could get temperature from one station and precipitation from another relatively close by! Let's look at the observations for RH Phillips, where the closest station is Brooks (14.5 km, doesn't have precipitation data), but the closest station with all three variables is Woodland 1 WNW (22 km). Therefore, let's compare the data for both! (Note that these plots only show December-August data) 
+
+The following plots show (top) precipitation, (middle) TMAX, and (bottom) TMIN in the first figure, and the differences for (top) TMAX and (bottom) TMIN between Woodland and Brooks. Note that both Woodland and Brooks have some gaps in their data. Note that there are some times when the magnitude of the difference is 20 degrees or more!!
+
+```{r diff_stations}
+stat_close=match_table[8,'Station']
+stat_all=match_2[8,'Station']
+
+df_close=yolo_data[yolo_data$NAME==stat_close,c("DATE","PRCP","TMAX","TMIN")]
+df_close['NAME']=rep(stat_close,nrow(df_close))
+df_all=yolo_data[yolo_data$NAME==stat_all,c("DATE","PRCP","TMAX","TMIN")]
+df_all['NAME']=rep(stat_all,nrow(df_all))
+df_xjoin=merge(df_all,df_close,by=c("DATE"))
+df_xjoin$PRCP.x=NULL
+df_xjoin$PRCP.y=NULL
+df_xjoin['TMAX_DIFF']=df_xjoin$TMAX.x-df_xjoin$TMAX.y
+df_xjoin['TMIN_DIFF']=df_xjoin$TMIN.x-df_xjoin$TMIN.y
+df_xjoin['NAME']=rep("DIFF",nrow(df_xjoin))
+df_diff=na.omit(df_xjoin[,c("DATE","NAME","TMAX_DIFF","TMIN_DIFF")])
+diff_melt=melt(df_diff,id.vars=c("DATE","NAME"))
+all_merge=rbind(df_close,df_all)
+all_comb=melt(all_merge,id.vars=c("DATE","NAME"))
+all_comb=rbind(all_comb,diff_melt)
+all_comb$DATE<-as.Date(all_comb$DATE,"%Y-%m-%d")
+all_comb<-all_comb[!is.na(all_comb$value),]
+all_comb<-all_comb[format(all_comb$DATE,"%Y")>2014 ,]
+all_comb[as.numeric(format(all_comb$DATE,"%m"))>8 & as.numeric(format(all_comb$DATE,"%m"))<12,"value"]=NA
+#all_dec=all_comb[as.numeric(format(all_comb$DATE,"%m"))>11,]
+#all_aug=all_comb[as.numeric(format(all_comb$DATE,"%m"))<9,]
+#all_comb=rbind(all_dec,all_aug)
+all_comb$NAME=factor(all_comb$NAME,levels=c(stat_close,stat_all,"DIFF"))
+all_abs=all_comb[all_comb$variable=='TMAX' | all_comb$variable=='PRCP' | all_comb$variable=='TMIN',]
+all_diff=all_comb[all_comb$variable=='TMAX_DIFF' | all_comb$variable=='TMIN_DIFF',]
+#all_prec=all_comb[all_comb$variable=="PRCP",]
+ggplot(data=all_abs,aes(all_abs$DATE,all_abs$value,color=all_abs$NAME)) +
+  facet_grid(rows=all_abs$variable,scales="free")+
+  geom_line()+
+  scale_color_discrete(name="Station")+
+  xlab("Date")+
+  ylab("Variable")+
+  theme(legend.position = "bottom")
+
+
+ggplot(data=all_diff,aes(all_diff$DATE,all_diff$value,color=all_diff$value)) +
+  facet_grid(rows=all_diff$variable,scales="free")+
+  geom_point(size=3)+
+  scale_color_gradient2(name="Difference",low="blue",high="red",mid='purple',midpoint=0)+
+  xlab("Date")+
+  ylab("Variable")+
+    theme(legend.position = "bottom")
+
+diff_temps=na.omit(df_xjoin)
+diff_temps$DATE<-as.Date(diff_temps$DATE,"%Y-%m-%d")
+diff_temps<-diff_temps[format(diff_temps$DATE)>2014,]
+```
+
+
+Let's look at just the times when the temperature difference exceeds 10 degrees. (Precipitation isn't shown here because we only had data from one of the stations)
+```{r plot_only_diffs}
+#get dates where the diff is 10 or more
+date_keys=diff_temps[abs(diff_temps$TMAX_DIFF)>10 | abs(diff_temps$TMIN_DIFF)>10,"DATE"]
+temp_brooks=diff_temps[diff_temps$NAME.y==stat_close,c(1,5:7)]
+temp_wood=diff_temps[diff_temps$NAME.x==stat_all,c(1:4)]
+colnames(temp_brooks)=c("DATE","TMAX","TMIN","NAME")
+colnames(temp_wood)=c("DATE","TMAX","TMIN","NAME")
+temp_merge=rbind(temp_brooks,temp_wood)
+plot_abs=melt(temp_merge,id.vars=c("DATE","NAME"))
+plot_abs[!(plot_abs$DATE %in% date_keys),"value"]=NA
+
+diff_df=diff_temps[,c("DATE","TMAX_DIFF","TMIN_DIFF")]
+plot_diff=melt(diff_df,id.vars=c("DATE"))
+plot_diff[!(plot_diff$DATE %in% date_keys),"value"]=NA
+
+ggplot(data=plot_abs,aes(plot_abs$DATE,plot_abs$value,color=plot_abs$NAME)) +
+  facet_grid(rows=plot_abs$variable,scales="free")+
+  geom_point(size=3)+
+  scale_color_discrete(name="Station")+
+  xlab("Date")+
+  ylab("Variable")+
+    theme(legend.position = "bottom")
+
+ggplot(data=plot_diff,aes(plot_diff$DATE,plot_diff$value,color=plot_diff$value)) +
+  facet_grid(rows=plot_diff$variable)+
+  geom_point(size=3)+
+  scale_color_gradient2(name="Difference",low="blue",high="red",mid="purple",midpoint=0)+
+  xlab("Date")+
+  ylab("Variable")+
+    theme(legend.position = "bottom")
+
+```
+
+We see that there are quite a few points with this sort of discrepancy, which means that I'd be hesitant to use one as a substitute for the other. I'd likely bring in at least one other dataset to verify which one was correct. Note that topography can play a huge factor in temperature differences, so it's possible that we want to also try to match elevation!
