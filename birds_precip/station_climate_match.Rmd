@@ -186,7 +186,7 @@ diff_temps<-diff_temps[format(diff_temps$DATE)>2014,]
 ```
 
 
-Let's look at just the times when the temperature difference exceeds 10 degrees. (Precipitation isn't shown here because we only had data from one of the stations)
+Let's look at just the times when the temperature difference for either the TMAX or TMIN exceeds 10 degrees. (Precipitation isn't shown here because we only had data from one of the stations)
 ```{r plot_only_diffs}
 #get dates where the diff is 10 or more
 date_keys=diff_temps[abs(diff_temps$TMAX_DIFF)>10 | abs(diff_temps$TMIN_DIFF)>10,"DATE"]

@@ -83,9 +83,9 @@ more\!\!
 
 ![](station_climate_match_files/figure-gfm/diff_stations-1.png)<!-- -->![](station_climate_match_files/figure-gfm/diff_stations-2.png)<!-- -->
 
-Let’s look at just the times when the temperature difference exceeds 10
-degrees. (Precipitation isn’t shown here because we only had data from
-one of the stations)
+Let’s look at just the times when the temperature difference for either
+the TMAX or TMIN exceeds 10 degrees. (Precipitation isn’t shown here
+because we only had data from one of the stations)
 ![](station_climate_match_files/figure-gfm/plot_only_diffs-1.png)<!-- -->![](station_climate_match_files/figure-gfm/plot_only_diffs-2.png)<!-- -->
 
 We see that there are quite a few points with this sort of discrepancy,
