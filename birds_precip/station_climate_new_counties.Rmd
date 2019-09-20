@@ -1,0 +1,245 @@
+---
+title: "Stations and site part 2"
+output: github_document
+---
+```{r setup,echo=FALSE}
+library(knitr)
+library(openxlsx)
+library(reshape2)
+library(ggplot2)
+library(ggmap)
+library(ggrepel)
+#library(cowplot)
+knitr::opts_chunk$set(echo=FALSE,fig.height = 10,fig.width = 15,warning=FALSE)
+setwd("~/project_repo/birds_precip/")
+
+deg2rad<-function(deg) {
+  return(deg * (pi/180))
+}
+getDistanceFromLatLonInKm<-function(lat1,lon1,lat2,lon2) {
+  R = 6371;
+  dLat = deg2rad(lat2-lat1)
+  dLon = deg2rad(lon2-lon1)
+  a = sin(dLat/2) * sin(dLat/2) +
+    cos(deg2rad(lat1)) * cos(deg2rad(lat2)) *
+    sin(dLon/2) * sin(dLon/2)
+
+  b = 2 * atan2(sqrt(a), sqrt(1-a))
+  d = R * b
+  return(d)
+}
+
+```
+
+We now have data from Yolo, Sacramento, Solano, and Napa counties. The blue dots indicate stations and the red dots indicate sites.
+
+```{r read_nests}
+#Yolo county stations
+yolo_data=read.csv("yolo_county_1990_2019.csv",stringsAsFactors = FALSE)
+ystat_info=unique(yolo_data[c("NAME","LATITUDE","LONGITUDE")])
+ystat_info["COUNTY"]="YOLO"
+
+#Napa county stations
+napa_data=read.csv("napa_county_1990_2019.csv")
+nstat_info=unique(napa_data[c("NAME","LATITUDE","LONGITUDE")])
+nstat_info["COUNTY"]="NAPA"
+#Sacramento county stations
+sac1=read.csv("sacramento_county_1990_2000.csv")
+sac2=read.csv("sacramento_county_2001_2019.csv")
+sac_data=rbind(sac1,sac2)
+sstat_info=unique(sac_data[c("NAME","LATITUDE","LONGITUDE")])
+sstat_info["COUNTY"]="SACRAMENTO"
+#Solano County
+sol_data=read.csv("solano_county_1990_2019.csv")
+ostat_info=unique(sol_data[c("NAME","LATITUDE","LONGITUDE")])
+ostat_info["COUNTY"]="SOLANO"
+
+sites=read.xlsx("site_locations.xlsx",colNames = TRUE)
+sites_known=sites[1:11,1:4]
+sites_known$lat=as.numeric(sites_known$lat)
+sites_known$long=as.numeric(sites_known$long)
+stat_all=data.frame(rbind(ystat_info,nstat_info,sstat_info,ostat_info),stringsAsFactors = FALSE)
+stat_all$LATITUDE=as.numeric(stat_all$LATITUDE)
+stat_all$LONGITUDE=as.numeric(stat_all$LONGITUDE)
+
+stat_data=data.frame(rbind(yolo_data,napa_data,sac_data,sol_data),stringsAsFactors = FALSE)
+```
+
+```{r get_bbox}
+#Get the bounding box for the map
+y_max=as.numeric(max(c(sites_known$lat,stat_all$LATITUDE)))+2
+y_min=as.numeric(min(c(sites_known$lat,stat_all$LATITUDE)))-2
+x_max=as.numeric(max(c(sites_known$long,stat_all$LONGITUDE)))+2
+x_min=as.numeric(min(c(sites_known$long,stat_all$LONGITUDE)))-2
+xc=(x_max+x_min)*0.5
+yc=(y_max+y_min)*0.5
+
+ggmap(get_googlemap(center=c(lon=xc,lat=yc),maptype = 'terrain',zoom=9))+
+  geom_point(data=stat_all,aes(x=LONGITUDE,y=LATITUDE),color="blue",size=3)+
+  geom_point(data=sites_known,aes(x=long,y=lat),size=3,color="red")
+
+```
+
+These are the closest stations to the sites:
+
+```{r read_info}
+
+match_table=data.frame('Site'=character(),'Station'=character(),'Distance_km'=numeric(),stringsAsFactors = FALSE)
+r=1
+for (site in 1:nrow(sites_known)){
+  site_data=sites_known[site,]
+  xs=as.numeric(site_data['long'])
+  ys=as.numeric(site_data['lat'])
+  dist<-c()
+  for (stat in 1:nrow(stat_all)){
+    stat_subset=stat_all[stat,]
+    xd=as.numeric(stat_subset['LONGITUDE'])
+    yd=as.numeric(stat_subset['LATITUDE'])
+    stat_site=getDistanceFromLatLonInKm(ys,xs,yd,xd) 
+    dist<-c(dist,stat_site)
+  }
+  nearest_dist_ind=which.min(dist)
+  stat_select=stat_all[nearest_dist_ind,]
+  match_table[r,'Site']=site_data[1,'Site']
+  match_table[r,'Station']=as.character(stat_select[1,'NAME'])
+  match_table[r,3]=dist[nearest_dist_ind]
+  r=r+1
+}
+
+kable(match_table,row.names=FALSE)
+```
+
+And these are the stations with all three variables:
+
+```{r has_data}
+stations=unique(stat_all$NAME)
+varnames<-c("PRCP","TMAX","TMIN")
+#snew<-c()
+tab_new=stat_all[0,]
+r=1
+for (s in stations){
+  stat_subset=stat_data[stat_data$NAME==s,]  
+  #Which columns are non-NA?
+  v<-c()
+  for (x in names(stat_subset)[7:9]){
+    if (all(is.na(stat_subset[,x]))==FALSE){
+      v<-c(v,x)
+    }
+  }
+  if (all(varnames %in% v)){
+    #snew<-c(snew,s)
+    #get the data from the info table
+    tab_new[r,]=stat_all[stat_all$NAME==s,]
+    r=r+1
+  }
+
+}
+
+kable(tab_new,row.names=FALSE)
+
+
+```
+
+This gives us a wider range of stations with all three variables (shown in purple here).
+
+```{r map}
+ggmap(get_googlemap(center=c(lon=xc,lat=yc),maptype = 'terrain',zoom=9))+
+  geom_point(data=stat_all,aes(x=LONGITUDE,y=LATITUDE),color="blue")+
+  geom_point(data=sites_known,aes(x=long,y=lat),size=3,color="red")+
+  geom_point(data=tab_new,aes(x=LONGITUDE,y=LATITUDE),size=3,color="purple")+
+  geom_label_repel(data=tab_new,aes(x=LONGITUDE,y=LATITUDE,label=NAME),box.padding = 0.5,point.padding = 0.5)
+```
+Matching that with the sites, this is the final result:
+
+
+```{r available_data}
+match_2=data.frame('Site'=character(),'Station'=character(),'Distance_km'=numeric(),stringsAsFactors = FALSE)
+r=1
+for (site in 1:nrow(sites_known)){
+  site_data=sites_known[site,]
+  xs=as.numeric(site_data['long'])
+  ys=as.numeric(site_data['lat'])
+  dist<-c()
+  for (stat in 1:nrow(tab_new)){
+    stat_data=tab_new[stat,]
+    xd=as.numeric(stat_data['LONGITUDE'])
+    yd=as.numeric(stat_data['LATITUDE'])
+    stat_site=getDistanceFromLatLonInKm(ys,xs,yd,xd) 
+    dist<-c(dist,stat_site)
+  }
+  nearest_dist_ind=which.min(dist)
+  stat_select=tab_new[nearest_dist_ind,]
+  match_2[r,'Site']=site_data[1,'Site']
+  match_2[r,'Station']=as.character(stat_select[1,'NAME'])
+  match_2[r,3]=dist[nearest_dist_ind]
+  r=r+1
+}
+
+kable(match_2,row.names=FALSE)
+
+match_names=unique(match_2$Station)
+stat_match=tab_new[(tab_new$NAME %in% match_names),]
+
+
+  
+```
+
+
+And this is the map of the sites (red) and the closest stations (green) with all three variables.
+
+```{r final_map}
+ggmap(get_googlemap(center=c(lon=xc,lat=yc),maptype = 'terrain',zoom=9))+
+  geom_point(data=stat_all,aes(x=LONGITUDE,y=LATITUDE),color="blue")+
+  geom_point(data=sites_known,aes(x=long,y=lat),size=3,color="red")+
+  geom_point(data=tab_new,aes(x=LONGITUDE,y=LATITUDE),size=2,color="purple")+
+  geom_point(data=stat_match,aes(x=LONGITUDE,y=LATITUDE),size=3,color="green")+
+  geom_label_repel(data=stat_match,aes(x=LONGITUDE,y=LATITUDE,label=NAME),box.padding = 0.5,point.padding = 0.5)+
+  geom_label_repel(data=sites_known,aes(x=long,y=lat,label=Site),box.padding=0.5,point.padding = 0.7)
+```
+
+Now let's look at the difference between Winters and the Davis Experimental Farm. Davis has an elevation of 18.3 feet while Winters has an elevation of 41.1 feet.
+
+```{r davis_winters}
+
+davis_stat=stat_match[2,"NAME"]
+winter_stat=stat_match[3,"NAME"]
+stat_compare=yolo_data[(yolo_data$NAME==davis_stat) | (yolo_data$NAME==winter_stat),]
+tab_compare=stat_compare[,c("NAME","DATE","PRCP","TMIN","TMAX")]
+tab_compare$DATE=as.Date(tab_compare$DATE)
+tab_compare=tab_compare[format(tab_compare$DATE,"%Y")>2014,]
+tab_melt=melt(tab_compare,id.vars=c("NAME","DATE"))
+tab_melt[as.numeric(format(tab_melt$DATE,"%m"))>8 & as.numeric(format(tab_melt$DATE,"%m"))<12,"value"]=NA
+
+ggplot(data=tab_melt,aes(x=DATE,y=value,color=NAME))+
+ facet_grid(rows=tab_melt$variable,scales='free')+
+ geom_line()+
+    xlab("Date")+
+  ylab("Variable")+
+    theme(legend.position = "bottom")
+```
+While they SEEM reasonably close, let's check the magnitude of difference for each.
+
+```{r diff_stats}
+stat_davis=tab_compare[tab_compare$NAME==davis_stat,]
+stat_winter=tab_compare[tab_compare$NAME==winter_stat,]
+df_xjoin=merge(stat_davis,stat_winter,by=c("DATE"),keep='all')
+df_xjoin$TMAX_DIFF=df_xjoin$TMAX.x-df_xjoin$TMAX.y
+df_xjoin$TMIN_DIFF=df_xjoin$TMIN.x-df_xjoin$TMIN.y
+df_xjoin$PRCP_DIFF=df_xjoin$PRCP.x-df_xjoin$PRCP.y
+df_diff=df_xjoin[,c("DATE","PRCP_DIFF","TMAX_DIFF","TMIN_DIFF")]
+diff_melt=melt(df_diff,id.vars=c("DATE"))
+diff_melt[as.numeric(format(diff_melt$DATE,"%m"))>8 & as.numeric(format(diff_melt$DATE,"%m"))<12,"value"]=NA
+#diff_melt$variable=factor(diff_melt$variable,levels=c("PRCP_DIFF,"))
+
+ggplot(data=diff_melt,aes(x=DATE,y=value,color=value))+
+ facet_grid(rows=diff_melt$variable,scales='free')+
+ geom_point(size=3)+
+  scale_color_gradient2(name="Difference",low="blue",high="red",mid='purple',midpoint=0)+
+  xlab("Date")+
+  ylab("Variable")+
+    theme(legend.position = "bottom")
+
+
+```
+
+That precipitation difference is not greatl the order of magnitude for the differences is comparable to the amount of rain itself! We'll likely want to stick to whichever station is closest, if possible (or do a distance-weighted average). It's not really surprising given the difference in elevation (and Winters is closer to hillier terrain, which impacts precipitation amounts).
