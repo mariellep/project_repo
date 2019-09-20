@@ -205,7 +205,7 @@ Now let's look at the difference between Winters and the Davis Experimental Farm
 davis_stat=stat_match[2,"NAME"]
 winter_stat=stat_match[3,"NAME"]
 stat_compare=yolo_data[(yolo_data$NAME==davis_stat) | (yolo_data$NAME==winter_stat),]
-tab_compare=stat_compare[,c("NAME","DATE","PRCP","TMIN","TMAX")]
+tab_compare=stat_compare[,c("NAME","DATE","PRCP","TMAX","TMIN")]
 tab_compare$DATE=as.Date(tab_compare$DATE)
 tab_compare=tab_compare[format(tab_compare$DATE,"%Y")>2014,]
 tab_melt=melt(tab_compare,id.vars=c("NAME","DATE"))
