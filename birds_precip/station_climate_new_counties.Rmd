@@ -76,7 +76,8 @@ yc=(y_max+y_min)*0.5
 
 ggmap(get_googlemap(center=c(lon=xc,lat=yc),maptype = 'terrain',zoom=9))+
   geom_point(data=stat_all,aes(x=LONGITUDE,y=LATITUDE),color="blue",size=3)+
-  geom_point(data=sites_known,aes(x=long,y=lat),size=3,color="red")
+  geom_point(data=sites_known,aes(x=long,y=lat),size=3,color="red")+
+    geom_label_repel(data=sites_known,aes(x=long,y=lat,label=Site),box.padding = 0.5,point.padding = 0.5)
 
 ```
 
