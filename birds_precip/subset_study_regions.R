@@ -35,7 +35,9 @@ plot_timeseries<-function(df,figtitle){
     ylab(NULL)+
     xlab("Date")+
     theme(legend.position = "none",
-          axis.text.x = element_text(angle = 45, hjust = 1)) 
+          axis.text.x = element_text(angle = 45, hjust = 1),
+          axis.text=element_text(size=rel(1.2)),
+          strip.text=element_text(size=rel(1.3))) 
   aspect_ratio <- 2.5
   ggsave(figtitle, height = 7 , width = 7 * aspect_ratio,device=png())
 }
@@ -47,6 +49,6 @@ napa_files<-read.csv('napa_county_1990_2019.csv')
 #Set the lat/lon boundaries
 napa_study_region<-read_data(napa_files,38,39,-123,-121)
 #if you wanted to look at more years, you could specify a different minyear
-napa_extended<-read_data(napa_files,38,39,-125,-120,minyear=1995)
+napa_extended<-read_data(napa_files,38,39,-123,-121,minyear=1995)
 #Now we plot the data!
 plot_timeseries(napa_study_region,"napa.png")
